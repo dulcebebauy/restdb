@@ -1,0 +1,1927 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#1d4ed8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>POS</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="config.js"></script>
+<link rel="stylesheet" href="pos.css">
+<style>
+.mesa-card {
+  background: #fff;
+  border-radius: 16px;
+  border: 2px solid #e2e8f0;
+  padding: 18px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s, border-color .15s;
+  user-select: none;
+}
+.mesa-card:active { transform: scale(.95); }
+.mesa-card:hover  { box-shadow: 0 4px 18px rgba(0,0,0,.1); border-color: #cbd5e1; }
+.mesa-card.ocupada { border-color: #1d4ed8; background: #eff6ff; }
+.mesa-card.ocupada .mesa-status { color: #1d4ed8; }
+.mesa-num {
+  font-size: 11px;
+  font-weight: 500;
+  color: #94a3b8;
+  letter-spacing: .3px;
+}
+.mesa-icon { font-size: 30px; line-height: 1; }
+.mesa-status { font-size: 15px; font-weight: 700; color: #0f172a; }
+.mesa-items {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 500;
+  background: #f1f5f9;
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+.mesa-nombre {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  text-align: center;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mesa-card .edit-hint { font-size: 10px; color: #cbd5e1; margin-top: -2px; }
+
+.nombre-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 900;
+  align-items: center;
+  justify-content: center;
+}
+.nombre-modal-overlay.open { display: flex; }
+.nombre-modal {
+  background: #fff;
+  border-radius: 18px;
+  padding: 24px 20px 18px;
+  width: min(320px, 90vw);
+  box-shadow: 0 20px 60px rgba(0,0,0,.18);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.nombre-modal-title { font-size: 16px; font-weight: 700; color: #0f172a; }
+.nombre-modal input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 15px;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color .15s;
+}
+.nombre-modal input:focus { border-color: #1d4ed8; }
+.nombre-modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+.nombre-modal-btns button {
+  padding: 8px 18px;
+  border-radius: 9px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn-cancelar-nombre { background: #f1f5f9; color: #64748b; }
+.btn-guardar-nombre  { background: #1d4ed8; color: #fff; }
+
+#usuarioHeader {
+  background-color: #c303c3;
+  border-radius: 5px;
+  padding: 0 8px;
+  color: white !important;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 26px;
+  flex-shrink: 0;
+}
+.toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: #cbd5e1;
+  border-radius: 26px;
+  transition: background .2s;
+}
+.toggle-slider::before {
+  content: "";
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  left: 3px;
+  top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform .2s;
+  box-shadow: 0 1px 4px rgba(0,0,0,.2);
+}
+.toggle-switch input:checked + .toggle-slider { background: #1d4ed8; }
+.toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }
+.toggle-label-text { font-size: 14px; font-weight: 600; color: #0f172a; }
+.toggle-on-text  { color: #1d4ed8; }
+.toggle-off-text { color: #94a3b8; }
+.toggle-hint { font-size: 12px; color: #94a3b8; margin: 6px 0 0 0; line-height: 1.4; }
+</style>
+</head>
+
+<audio id="successSound" src="success_premium.mp3" preload="auto"></audio>
+<body>
+
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">
+        <img src="icon-192.png" style="width:200%;"/>
+      </div>
+    </div>
+    <div class="login-title">POS</div>
+    <p class="login-sub">Ingresá tus credenciales para continuar</p>
+    <div class="login-field">
+      <label for="loginUser">Email</label>
+      <input type="email" id="loginUser">
+    </div>
+    <div class="login-field">
+      <label for="loginPass">Contraseña</label>
+      <input type="password" id="loginPass" placeholder="Contraseña" autocomplete="current-password">
+    </div>
+    <div class="login-error" id="loginError"></div>
+    <button class="login-btn" onclick="doLogin()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+        <polyline points="10 17 15 12 10 7"/>
+        <line x1="15" y1="12" x2="3" y2="12"/>
+      </svg>
+      Ingresar
+    </button>
+  </div>
+</div>
+
+<div id="mesasScreen" style="display:none;flex-direction:column;height:100%;background:var(--bg,#f1f5f9);">
+  <header class="header" style="justify-content:space-between;align-items:center;gap:10px;">
+    <button class="logout-btn" onclick="doLogout()" title="Cerrar sesión">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+        <polyline points="16 17 21 12 16 7"/>
+        <line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+    </button>
+    <div style="display:flex;flex-direction:column;align-items:center;flex:1;">
+      <div style="font-size:17px;font-weight:700;color:var(--fg,#0f172a);letter-spacing:-0.3px;">Mesas</div>
+      <div id="usuarioHeader" style="font-size:12px;font-weight:600;color:#64748b;margin-top:2px;"></div>
+    </div>
+    <button class="report-btn" id="reportBtn" onclick="openReport()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10"/>
+        <line x1="12" y1="20" x2="12" y2="4"/>
+        <line x1="6" y1="20" x2="6" y2="14"/>
+        <path d="M2 20h20"/>
+      </svg>
+    </button>
+  </header>
+  <main style="flex:1;overflow-y:auto;padding:16px;">
+    <div id="mesasGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;max-width:700px;margin:0 auto;"></div>
+  </main>
+</div>
+
+<div id="posApp" style="display:none;flex-direction:column;height:100%;">
+
+  <div class="pay-loader hidden" id="payLoader">
+    <div class="spinner"></div>
+    <p>Procesando pago...</p>
+  </div>
+
+  <div class="toast-wrap" id="toastWrap"></div>
+
+  <header class="header">
+    <button class="report-btn" onclick="volverAMesas()" title="Volver a mesas" id="btnVolverMesas" style="display:none;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15 18l-6-6 6-6"/>
+      </svg>
+    </button>
+    <button class="report-btn" onclick="recargarProductos(true)" title="Recargar productos">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
+        <path d="M21 3v5h-5"/>
+      </svg>
+    </button>
+    <div class="search-wrap">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="text" id="search" placeholder="Buscar producto..." oninput="handleSearch()" autocomplete="off">
+      <button class="icon-btn" id="search-clear" onclick="clearSearch()" style="background:none;border:none;width:30px;height:30px;border-radius:6px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+    <div class="total-box">
+      <span class="total-label">Total</span>
+      <div class="total-amount" id="totalAmount">$0</div>
+      <div id="mesaBadge" style="display:none;font-size:11px;font-weight:600;color:var(--primary,#1d4ed8);letter-spacing:.2px;margin-top:1px;white-space:nowrap;"></div>
+    </div>
+  </header>
+
+  <div class="cat-filter-bar" id="catFilterBar">
+    <button class="cat-chip active" data-cat="todos" onclick="setCatFilter('todos', this)">Todos</button>
+    <button class="cat-chip" data-cat="bebidas_calientes" onclick="setCatFilter('bebidas_calientes', this)"><span class="chip-dot" style="background:#f97316"></span>☕ Bebidas calientes</button>
+    <button class="cat-chip" data-cat="bebidas_frias" onclick="setCatFilter('bebidas_frias', this)"><span class="chip-dot" style="background:#06b6d4"></span>🍹 Bebidas frías</button>
+    <button class="cat-chip" data-cat="dulces" onclick="setCatFilter('dulces', this)"><span class="chip-dot" style="background:#ec4899"></span>🍰 Dulces</button>
+    <button class="cat-chip" data-cat="postres" onclick="setCatFilter('postres', this)"><span class="chip-dot" style="background:#8b5cf6"></span>🍮 Postres</button>
+    <button class="cat-chip" data-cat="salados" onclick="setCatFilter('salados', this)"><span class="chip-dot" style="background:#84cc16"></span>🥪 Salados</button>
+    <button class="cat-chip" data-cat="tortas" onclick="setCatFilter('tortas', this)"><span class="chip-dot" style="background:#f59e0b"></span>🎂 Tortas</button>
+    <button class="cat-chip" data-cat="meriendas" onclick="setCatFilter('meriendas', this)"><span class="chip-dot" style="background:#10b981"></span>🥐 Meriendas</button>
+  </div>
+
+  <main class="main">
+    <div id="stateCenter" class="state-center"><div class="spinner"></div></div>
+    <div class="grid" id="grid"></div>
+  </main>
+
+  <button class="fab hidden" id="fab" onclick="openDrawer()">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+    Ver Carrito
+    <span class="fab-badge" id="fabBadge">0</span>
+  </button>
+
+  <div class="overlay" id="overlay" onclick="closeDrawer()"></div>
+
+  <div class="drawer" id="drawer">
+    <div class="drawer-head">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="drawer-title">Carrito</span>
+        <span id="drawerMesaBadge" style="display:none;font-size:12px;font-weight:700;background:var(--primary,#1d4ed8);color:#fff;border-radius:6px;padding:2px 9px;letter-spacing:.2px;"></span>
+      </div>
+      <button class="icon-btn" onclick="closeDrawer()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+    <div class="drawer-items" id="drawerItems">
+      <div class="empty-cart">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+        <p>El carrito está vacío</p>
+      </div>
+    </div>
+    <div class="drawer-footer">
+      <div class="discount-row">
+        <input type="number" id="discount" placeholder="Desc. %" min="0" max="100" oninput="updateDrawerTotal()">
+        <input type="text" id="discountDesc" placeholder="Motivo del descuento">
+      </div>
+      <div class="totals" id="totalsBox">
+        <div class="totals-row" id="subtotalRow"><span>Subtotal</span><span id="subtotalVal">$0</span></div>
+        <div class="totals-row discount" id="discountRow" style="display:none">
+          <span id="discountLabel">Descuento (0%)</span>
+          <span id="discountVal">-$0</span>
+        </div>
+        <div class="totals-row total-final"><span>Total</span><span id="cartTotal">$0</span></div>
+      </div>
+      <div class="pay-row">
+        <button class="pay-btn cash"   onclick="abrirCambio('efectivo')" id="btnEfectivo" disabled>Efectivo</button>
+        <button class="pay-btn debit"  onclick="pagar('debito')"         id="btnDebito"   disabled>Débito</button>
+        <button class="pay-btn credit" onclick="pagar('credito')"        id="btnCredito"  disabled>Crédito</button>
+      </div>
+      <button class="clear-btn" id="clearBtn" onclick="clearCart()" disabled>Vaciar carrito</button>
+    </div>
+  </div>
+
+  <div class="cambio-modal-overlay" id="cambioModalOverlay" onclick="handleCambioOverlayClick(event)">
+    <div class="cambio-modal">
+      <div class="cambio-modal-head">
+        <span class="cambio-modal-title">Pago en efectivo</span>
+        <button class="icon-btn" onclick="cerrarCambio()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <div class="cambio-modal-body">
+        <div>
+          <div class="cambio-total-label">Total a cobrar</div>
+          <div class="cambio-total-val" id="cambioTotalVal">$0</div>
+        </div>
+        <div class="cambio-field">
+          <label for="cambioMonto">Monto recibido</label>
+          <input type="number" id="cambioMonto" placeholder="0" min="0" oninput="calcularCambio()" inputmode="numeric">
+        </div>
+        <div class="cambio-quick-btns" id="cambioQuickBtns"></div>
+        <div class="cambio-result">
+          <span class="cambio-result-label">Vuelto</span>
+          <span class="cambio-result-val" id="cambioResultVal">—</span>
+        </div>
+      </div>
+      <div class="cambio-modal-footer">
+        <button class="cambio-cancel-btn" onclick="cerrarCambio()">Cancelar</button>
+        <button class="cambio-confirm-btn" id="cambioPagarBtn" onclick="confirmarPagoEfectivo()" disabled>Confirmar pago</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="report-panel" id="reportPanel">
+  <div class="report-header">
+    <div class="report-header-row1">
+      <button class="icon-btn" onclick="closeReport()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div class="report-header-titles">
+        <div class="report-header-title">Reporte de Ventas</div>
+        <div class="report-header-sub" id="reportSubtitle">Cargando datos...</div>
+      </div>
+    </div>
+    <div class="report-header-row2">
+      <button class="add-product-btn" onclick="openProductModal(null)" title="Agregar producto a la carta">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+        Producto
+      </button>
+      <button class="backup-btn" id="backupBtn" onclick="generarRespaldo()" title="Generar respaldo">
+        <svg class="icon-backup" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <svg class="icon-spin" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+        Respaldo
+      </button>
+      <button class="backup-btn" onclick="cargarVentas(true)" title="Actualizar ventas">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
+          <path d="M21 3v5h-5"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+  <div class="report-body" id="reportBody">
+    <div class="filter-card">
+      <h3>Filtrar por fecha</h3>
+      <div class="filter-row">
+        <div class="filter-group">
+          <label for="fechaDesde">Desde</label>
+          <input type="date" id="fechaDesde">
+        </div>
+        <div class="filter-group">
+          <label for="fechaHasta">Hasta</label>
+          <input type="date" id="fechaHasta">
+        </div>
+        <button class="filter-apply-btn" onclick="aplicarFiltro()">Aplicar</button>
+      </div>
+      <div class="quick-filters">
+        <button class="qf-btn" onclick="setQuickFilter('hoy', this)">Hoy</button>
+        <button class="qf-btn" onclick="setQuickFilter('semana', this)">Esta semana</button>
+        <button class="qf-btn" onclick="setQuickFilter('mes', this)">Este mes</button>
+        <button class="qf-btn" onclick="setQuickFilter('todo', this)">Todo</button>
+      </div>
+    </div>
+    <div id="reportContent">
+      <div class="report-loading"><div class="spinner"></div><span>Cargando ventas...</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="productModalOverlay" onclick="handleModalOverlayClick(event)">
+  <div class="modal" id="productModal">
+    <div class="modal-head">
+      <span class="modal-title" id="productModalTitle">Agregar Producto</span>
+      <button class="icon-btn" onclick="closeProductModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="prodId">
+      <div class="form-group">
+        <label for="prodNombre">Nombre *</label>
+        <input type="text" id="prodNombre" placeholder="Ej: Café con leche" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label for="prodDescripcion">Descripción</label>
+        <textarea id="prodDescripcion" placeholder="Descripción opcional del producto..."></textarea>
+      </div>
+      <div class="form-group">
+        <label for="prodPrecio">Precio *</label>
+        <input type="number" id="prodPrecio" placeholder="0" min="0" step="1">
+      </div>
+      <div class="form-group">
+        <label>Categoría *</label>
+        <div class="category-grid">
+          <label><input type="radio" name="prodCategoria" class="cat-option" value="bebidas_calientes" id="catBC"><span class="cat-label"><span class="cat-dot" style="background:#f97316"></span>Bebidas calientes</span></label>
+          <label><input type="radio" name="prodCategoria" class="cat-option" value="bebidas_frias" id="catBF"><span class="cat-label"><span class="cat-dot" style="background:#06b6d4"></span>Bebidas frías</span></label>
+          <label><input type="radio" name="prodCategoria" class="cat-option" value="dulces" id="catDu"><span class="cat-label"><span class="cat-dot" style="background:#ec4899"></span>Dulces</span></label>
+          <label><input type="radio" name="prodCategoria" class="cat-option" value="postres" id="catPo"><span class="cat-label"><span class="cat-dot" style="background:#8b5cf6"></span>Postres</span></label>
+          <label><input type="radio" name="prodCategoria" class="cat-option" value="salados" id="catSa"><span class="cat-label"><span class="cat-dot" style="background:#84cc16"></span>Salados</span></label>
+          <label><input type="radio" name="prodCategoria" class="cat-option" value="tortas" id="catTo"><span class="cat-label"><span class="cat-dot" style="background:#f59e0b"></span>Tortas</span></label>
+          <label><input type="radio" name="prodCategoria" class="cat-option" value="meriendas" id="catMe"><span class="cat-label"><span class="cat-dot" style="background:#10b981"></span>Meriendas</span></label>
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:4px;">
+        <label style="margin-bottom:10px;display:block;">Visibilidad en la carta</label>
+        <label class="toggle-row" for="prodMostrarCarta">
+          <span class="toggle-switch">
+            <input type="checkbox" id="prodMostrarCarta" checked>
+            <span class="toggle-slider"></span>
+          </span>
+          <span class="toggle-label-text">
+            <span class="toggle-on-text" id="toggleCartaOn">Visible en la carta</span>
+            <span class="toggle-off-text" id="toggleCartaOff" style="display:none;">Oculto en la carta</span>
+          </span>
+        </label>
+        <p class="toggle-hint">Si está activo, el producto aparecerá en la carta digital.</p>
+        <label class="toggle-row" for="prodMostrarPrecioCarta" style="margin-top:10px;" id="rowMostrarPrecio">
+          <span class="toggle-switch">
+            <input type="checkbox" id="prodMostrarPrecioCarta" checked>
+            <span class="toggle-slider"></span>
+          </span>
+          <span class="toggle-label-text">
+            <span class="toggle-on-text" id="togglePrecioOn">Precio visible en la carta</span>
+            <span class="toggle-off-text" id="togglePrecioOff" style="display:none;">Precio oculto en la carta</span>
+          </span>
+        </label>
+        <p class="toggle-hint" id="hintMostrarPrecio">Si está activo, el precio se mostrará junto al producto en la carta.</p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-delete-btn" id="deleteProductBtn" onclick="eliminarProducto()" style="display:none">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+      </button>
+      <button class="modal-cancel-btn" onclick="closeProductModal()">Cancelar</button>
+      <button class="modal-save-btn" id="saveProductBtn" onclick="guardarProducto()">
+        <svg class="icon-spin-save" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+        <span class="save-label">Guardar</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="nombre-modal-overlay" id="nombreModalOverlay" onclick="handleNombreOverlayClick(event)">
+  <div class="nombre-modal">
+    <div class="nombre-modal-title" id="nombreModalTitle">Nombre de la mesa</div>
+    <input type="text" id="nombreModalInput" placeholder="Ej: Terraza, Ventana, VIP..." maxlength="20" autocomplete="off">
+    <div class="nombre-modal-btns">
+      <button class="btn-cancelar-nombre" onclick="cerrarNombreModal()">Cancelar</button>
+      <button class="btn-guardar-nombre"  onclick="guardarNombreMesa()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+const SUPABASE_URL = "https://rdxnnngdnslxnsgtgqzf.supabase.co";
+const SUPABASE_KEY = "sb_publishable_hfbsKDlF0mPBNIbU7ACCeg_p2WZsMGh";
+
+window.supabase_res = createClient(SUPABASE_URL, SUPABASE_KEY);
+</script>
+
+<script>
+/* ═══════════════════════════════════════
+   ESTADO GLOBAL
+═══════════════════════════════════════ */
+let mesasChannel    = null;
+let usuarioActual   = null;
+let productos       = [];
+let drawerOpen      = false;
+let currentDiscount = 0;
+let mesas           = [];
+let mesaSeleccionada = null;
+let saveTimeout     = null;
+let savingCart      = false;
+let ventasCache     = [];
+let reportChart     = null;
+let activeQuickFilter = null;
+let editingProductId  = null;
+let mesaEditando      = null;
+let cambioMetodo      = "efectivo";
+let activeCatFilter   = "todos";
+
+Object.defineProperty(window, "carrito", {
+  get() { return mesaSeleccionada ? mesaSeleccionada.carrito : []; },
+  set(val) { if (mesaSeleccionada) mesaSeleccionada.carrito = val; },
+  configurable: true
+});
+
+/* ═══════════════════════════════════════
+   CONFIGURACIÓN
+═══════════════════════════════════════ */
+const CATEGORY_EMOJI = {
+  bebidas_calientes: "☕",
+  bebidas_frias:     "🍹",
+  dulces:            "🍰",
+  postres:           "🍮",
+  salados:           "🥪",
+  tortas:            "🎂",
+  meriendas:         "🥐"
+};
+
+/* ═══════════════════════════════════════
+   REALTIME
+═══════════════════════════════════════ */
+function iniciarRealtimeMesas() {
+  if (mesasChannel) window.supabase_res.removeChannel(mesasChannel);
+
+  mesasChannel = supabase_res
+    .channel("mesas-realtime")
+    .on("postgres_changes", { event: "*", schema: "public", table: "mesas" }, payload => {
+      const nuevaMesa = mapMesa(payload.new);
+      const idx = mesas.findIndex(m => m.id === nuevaMesa.id);
+      if (idx !== -1) mesas[idx] = nuevaMesa;
+      else mesas.push(nuevaMesa);
+      mesas.sort((a, b) => a.numero - b.numero);
+
+      if (mesaSeleccionada && mesaSeleccionada.id === nuevaMesa.id) {
+        mesaSeleccionada = mesas.find(m => m.id === nuevaMesa.id);
+        updateTotal();
+        if (drawerOpen) renderCartItems();
+        applyFilters();
+      }
+      renderMesas();
+    })
+    .subscribe();
+}
+
+function mapMesa(m) {
+  return {
+    id:           m.id,
+    numero:       m.numero,
+    nombre:       m.nombre || `Mesa ${m.numero}`,
+    carrito:      Array.isArray(m.carrito) ? m.carrito : [],
+    descuento:    Number(m.descuento || 0),
+    descuentoDesc: "",
+    ocupada:      !m.mesa_cerrada
+  };
+}
+
+/* ═══════════════════════════════════════
+   AUTH
+═══════════════════════════════════════ */
+async function checkSession() {
+  const { data } = await window.supabase_res.auth.getSession();
+  if (!data.session) return false;
+
+  const { data: usuario } = await window.supabase_res
+    .from("usuarios")
+    .select("*")
+    .eq("auth_user_id", data.session.user.id)
+    .single();
+
+  if (!usuario || !usuario.activo) return false;
+  usuarioActual = usuario;
+  return true;
+}
+
+async function doLogin() {
+  const email    = document.getElementById("loginUser").value.trim();
+  const password = document.getElementById("loginPass").value;
+  const errorEl  = document.getElementById("loginError");
+  errorEl.textContent = "";
+
+  if (!email)    { errorEl.textContent = "Ingresá el email"; return; }
+  if (!password) { errorEl.textContent = "Ingresá la contraseña"; return; }
+
+  const { data, error } = await window.supabase_res.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    errorEl.textContent = "Credenciales inválidas";
+    return;
+  }
+
+  const { data: usuario, error: errorUsuario } = await window.supabase_res
+    .from("usuarios")
+    .select("*")
+    .eq("auth_user_id", data.user.id)
+    .single();
+
+  if (errorUsuario || !usuario) { errorEl.textContent = "Usuario sin permisos"; return; }
+  if (!usuario.activo)          { errorEl.textContent = "Usuario inactivo"; return; }
+
+  usuarioActual = usuario;
+  await initMesas();
+  iniciarRealtimeMesas();
+  showMesasScreen();
+  cargarProductosSupabase();
+}
+
+async function doLogout() {
+  if (!confirm("¿Cerrar sesión?")) return;
+  await window.supabase_res.auth.signOut();
+  usuarioActual    = null;
+  mesaSeleccionada = null;
+  mesas            = [];
+  showLogin();
+}
+
+/* ═══════════════════════════════════════
+   NAVEGACIÓN DE PANTALLAS
+═══════════════════════════════════════ */
+function showLogin() {
+  document.getElementById("loginScreen").style.display  = "flex";
+  document.getElementById("posApp").style.display       = "none";
+  document.getElementById("mesasScreen").style.display  = "none";
+  document.getElementById("loginUser").value  = "";
+  document.getElementById("loginPass").value  = "";
+  document.getElementById("loginError").textContent = "";
+}
+
+function showPOS() {
+  document.getElementById("loginScreen").style.display = "none";
+  const posApp = document.getElementById("posApp");
+  posApp.style.display       = "flex";
+  posApp.style.flexDirection = "column";
+  posApp.style.height        = "100%";
+}
+
+function showMesasScreen() {
+  document.getElementById("usuarioHeader").textContent =
+    usuarioActual?.username + " | " + usuarioActual?.rol || "";
+
+  document.getElementById("reportBtn").style.display = puedeVerReportes() ? "inline-flex" : "none";
+
+  const stateEl = document.getElementById("stateCenter");
+  stateEl.style.display = "flex";
+  stateEl.innerHTML = '<div class="spinner"></div>';
+
+  mesaSeleccionada = null;
+  document.getElementById("loginScreen").style.display   = "none";
+  document.getElementById("posApp").style.display        = "none";
+  document.getElementById("mesasScreen").style.display   = "flex";
+  document.getElementById("reportPanel").classList.remove("open");
+
+  cargarMesasSupabase().then(remotas => {
+    if (remotas?.length > 0) {
+      mesas = remotas.map(mapMesa).sort((a, b) => a.numero - b.numero);
+    }
+    renderMesas();
+  });
+}
+
+/* ═══════════════════════════════════════
+   PERMISOS
+═══════════════════════════════════════ */
+const esAdministrador   = () => usuarioActual?.rol === "administrador";
+const esCajero          = () => usuarioActual?.rol === "cajero";
+const esMozo            = () => usuarioActual?.rol === "mozo";
+const puedeCobrar       = () => esAdministrador() || esCajero();
+const puedeEditarProductos = () => esAdministrador();
+const puedeVerReportes  = () => esAdministrador();
+
+/* ═══════════════════════════════════════
+   SUPABASE — ACCESO A DATOS
+═══════════════════════════════════════ */
+async function cargarProductosSupabase() {
+  const { data, error } = await window.supabase_res
+    .from("productos")
+    .select("*")
+    .eq("activo", true)
+    .order("categoria")
+    .order("nombre");
+
+  if (error) {
+    console.error(error);
+    showToast("Error cargando productos", "error");
+    return [];
+  }
+
+  productos = data.sort((a, b) => {
+    if (b.cantidad_ventas !== a.cantidad_ventas) return b.cantidad_ventas - a.cantidad_ventas;
+    return a.nombre.localeCompare(b.nombre, "es");
+  });
+
+  applyFilters();
+  localStorage.setItem("productos", JSON.stringify(productos));
+  return data || [];
+}
+
+async function cargarMesasSupabase() {
+  const { data, error } = await window.supabase_res
+    .from("mesas")
+    .select("*")
+    .order("numero");
+
+  if (error) {
+    console.error(error);
+    showToast("Error cargando mesas", "error");
+    return [];
+  }
+  return data || [];
+}
+
+async function guardarMesaSupabase(mesa) {
+  const subtotal = mesa.carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+  const descuento = mesa.descuento || 0;
+  const total = subtotal - descuento;
+
+  const { error } = await window.supabase_res
+    .from("mesas")
+    .update({
+      carrito:      mesa.carrito,
+      subtotal,
+      descuento,
+      total,
+      nombre:       mesa.nombre,
+      mesa_cerrada: mesa.carrito.length === 0
+    })
+    .eq("id", mesa.id);
+
+  if (error) console.error(error);
+}
+
+async function guardarVentaSupabase({ mesa, items, subtotal, descuento, total, metodo }) {
+  const { error } = await window.supabase_res
+    .from("ventas")
+    .insert({ mesa_id: mesa.id, items, subtotal, descuento, total, metodo_pago: metodo });
+
+  if (error) throw error;
+}
+
+/* ═══════════════════════════════════════
+   MESAS
+═══════════════════════════════════════ */
+async function initMesas() {
+  const config = (typeof MESAS_CONFIG !== "undefined" && MESAS_CONFIG.length)
+    ? MESAS_CONFIG
+    : Array.from({ length: 10 }, (_, i) => `Mesa ${i + 1}`);
+
+  const remotas = await cargarMesasSupabase();
+
+  if (remotas?.length > 0) {
+    mesas = remotas.map(mapMesa);
+    for (let i = 0; i < config.length; i++) {
+      const n = i + 1;
+      if (!mesas.find(m => m.numero === n)) {
+        const nueva = await crearMesaSupabase(n, config[i]);
+        if (nueva) mesas.push(nueva);
+      }
+    }
+    mesas.sort((a, b) => a.numero - b.numero);
+    return;
+  }
+
+  mesas = [];
+  for (let i = 0; i < config.length; i++) {
+    const nueva = await crearMesaSupabase(i + 1, config[i]);
+    mesas.push(nueva || crearMesaLocal(i + 1, config[i]));
+  }
+}
+
+async function crearMesaSupabase(numero, nombreDefault = "") {
+  const { data, error } = await window.supabase_res
+    .from("mesas")
+    .insert({ numero, nombre: nombreDefault, carrito: [], mesa_cerrada: true })
+    .select()
+    .single();
+
+  if (error) { console.error("Error creando mesa:", error); return null; }
+
+  return {
+    id:           data.id,
+    numero:       data.numero,
+    nombre:       data.nombre || `Mesa ${data.numero}`,
+    carrito:      [],
+    descuento:    0,
+    descuentoDesc: "",
+    ocupada:      false
+  };
+}
+
+function crearMesaLocal(numero, nombreDefault = "") {
+  return { numero, nombre: nombreDefault, carrito: [], ocupada: false, descuento: 0, descuentoDesc: "" };
+}
+
+function mesaLabel(mesa) {
+  return mesa.nombre || `Mesa ${mesa.numero}`;
+}
+
+function saveMesas() {
+  if (mesaSeleccionada) {
+    guardarMesaSupabase(mesaSeleccionada).catch(e => console.error("Error guardando mesa:", e));
+  }
+}
+
+function renderMesas() {
+  const grid = document.getElementById("mesasGrid");
+  grid.innerHTML = "";
+
+  mesas.forEach(mesa => {
+    const total  = mesa.carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+    const items  = mesa.carrito.reduce((s, i) => s + i.cantidad, 0);
+    const ocupada = mesa.carrito.length > 0;
+
+    const div = document.createElement("div");
+    div.className = "mesa-card" + (ocupada ? " ocupada" : "");
+    div.innerHTML = `
+      <div class="mesa-num">#${mesa.numero}</div>
+      <div class="mesa-nombre">${mesaLabel(mesa)}</div>
+      <div class="mesa-icon">${ocupada ? "🍽️" : `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 32 32"><circle cx="16" cy="16" r="10" fill="#22c55e"/></svg>`}</div>
+      <div class="mesa-status">${ocupada ? fmt(total) : "Libre"}</div>
+      ${items > 0 ? `<div class="mesa-items">${items} ítem${items !== 1 ? "s" : ""}</div>` : ""}
+      <div class="edit-hint">mantener = editar</div>
+    `;
+
+    let lpTimer = null;
+    let didLong = false;
+
+    const startLP = () => {
+      didLong = false;
+      lpTimer = setTimeout(() => {
+        didLong = true;
+        navigator.vibrate?.(50);
+        abrirNombreModal(mesa);
+      }, 550);
+    };
+    const cancelLP = () => clearTimeout(lpTimer);
+
+    div.addEventListener("touchstart",  startLP,  { passive: true });
+    div.addEventListener("touchend",    cancelLP);
+    div.addEventListener("touchmove",   cancelLP);
+    div.addEventListener("touchcancel", cancelLP);
+    div.addEventListener("mousedown",   e => { if (e.button === 0) startLP(); });
+    div.addEventListener("mouseup",     cancelLP);
+    div.addEventListener("mouseleave",  cancelLP);
+    div.addEventListener("contextmenu", e => { e.preventDefault(); cancelLP(); abrirNombreModal(mesa); });
+    div.addEventListener("click", () => {
+      if (didLong) { didLong = false; return; }
+      seleccionarMesa(mesa);
+    });
+
+    grid.appendChild(div);
+  });
+
+  document.getElementById("stateCenter").style.display = "none";
+}
+
+function seleccionarMesa(mesa) {
+  mesaSeleccionada = mesa;
+  document.getElementById("discount").value     = mesa.descuento     || "";
+  document.getElementById("discountDesc").value = mesa.descuentoDesc || "";
+  currentDiscount = 0;
+
+  document.getElementById("btnVolverMesas").style.display   = "inline-flex";
+  document.getElementById("mesaBadge").style.display        = "block";
+  document.getElementById("mesaBadge").textContent          = `🍽️ ${mesaLabel(mesa)}`;
+  document.getElementById("drawerMesaBadge").style.display  = "inline-block";
+  document.getElementById("drawerMesaBadge").textContent    = mesaLabel(mesa);
+
+  document.getElementById("mesasScreen").style.display = "none";
+  const posApp = document.getElementById("posApp");
+  posApp.style.display       = "flex";
+  posApp.style.flexDirection = "column";
+  posApp.style.height        = "100%";
+
+  updateTotal();
+  applyFilters();
+}
+
+function volverAMesas() {
+  if (mesaSeleccionada) {
+    mesaSeleccionada.descuento     = parseFloat(document.getElementById("discount").value) || 0;
+    mesaSeleccionada.descuentoDesc = document.getElementById("discountDesc").value || "";
+    guardarMesaSupabase(mesaSeleccionada).catch(e => console.error("Error guardando mesa al volver:", e));
+  }
+  closeDrawer();
+  showMesasScreen();
+}
+
+/* ═══════════════════════════════════════
+   NOMBRE DE MESA
+═══════════════════════════════════════ */
+function abrirNombreModal(mesa) {
+  mesaEditando = mesa;
+  document.getElementById("nombreModalTitle").textContent = `Nombre — #${mesa.numero}`;
+  document.getElementById("nombreModalInput").value = mesa.nombre || "";
+  document.getElementById("nombreModalOverlay").classList.add("open");
+  setTimeout(() => document.getElementById("nombreModalInput").select(), 150);
+}
+
+function cerrarNombreModal() {
+  document.getElementById("nombreModalOverlay").classList.remove("open");
+  mesaEditando = null;
+}
+
+async function guardarNombreMesa() {
+  if (!mesaEditando) return;
+  const val = document.getElementById("nombreModalInput").value.trim();
+  mesaEditando.nombre = val;
+
+  if (mesaEditando.id) {
+    const { error } = await window.supabase_res
+      .from("mesas")
+      .update({ nombre: val })
+      .eq("id", mesaEditando.id);
+    if (error) console.error("Error guardando nombre de mesa:", error);
+  }
+
+  cerrarNombreModal();
+  renderMesas();
+}
+
+function handleNombreOverlayClick(e) {
+  if (e.target === document.getElementById("nombreModalOverlay")) cerrarNombreModal();
+}
+
+/* ═══════════════════════════════════════
+   PRODUCTOS
+═══════════════════════════════════════ */
+function getCategoryEmoji(categoria) {
+  return CATEGORY_EMOJI[categoria] || "";
+}
+
+function setCatFilter(cat, btn) {
+  activeCatFilter = cat;
+  document.querySelectorAll(".cat-chip").forEach(c => c.classList.remove("active"));
+  btn.classList.add("active");
+  applyFilters();
+}
+
+function applyFilters() {
+  const searchTxt = normalizarTexto(document.getElementById("search").value);
+  let lista = productos;
+
+  if (activeCatFilter !== "todos") lista = lista.filter(p => p.categoria === activeCatFilter);
+  if (searchTxt) lista = lista.filter(p => normalizarTexto(p.nombre).includes(searchTxt));
+
+  renderProductos(lista);
+}
+
+function renderProductos(lista = productos) {
+  const stateEl = document.getElementById("stateCenter");
+  const grid    = document.getElementById("grid");
+
+  if (lista.length === 0 && productos.length > 0) {
+    stateEl.style.display = "flex";
+    stateEl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><p>No se encontraron productos</p>';
+    grid.innerHTML = "";
+    return;
+  }
+
+  if (lista.length > 0) stateEl.style.display = "none";
+  grid.innerHTML = "";
+
+  lista.forEach(p => {
+    const qty   = (carrito.find(i => i.id === p.id) || {}).cantidad || 0;
+    const emoji = getCategoryEmoji(p.categoria);
+    const div   = document.createElement("div");
+    div.className = "card" + (qty > 0 ? " in-cart" : "");
+    div.innerHTML = `
+      ${emoji ? `<div class="card-emoji">${emoji}</div>` : ""}
+      ${qty > 0 ? `<div class="card-qty">${qty}</div>` : ""}
+      <div class="card-lp-ring">
+        <svg width="52" height="52" viewBox="0 0 30 30"><circle cx="15" cy="15" r="14"/></svg>
+      </div>
+      <div class="card-name">${capitalizarTexto(p.nombre)}</div>
+      <div class="card-bottom">
+        <span class="card-price">${fmt(p.precio)}</span>
+        <div class="card-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+        </div>
+      </div>
+    `;
+
+    let lpTimer = null;
+    let didLongPress = false;
+
+    const startLongPress = () => {
+      didLongPress = false;
+      div.classList.add("long-pressing");
+      const ring = div.querySelector(".card-lp-ring circle");
+      if (ring) { ring.style.animation = "none"; void ring.offsetWidth; ring.style.animation = ""; }
+      lpTimer = setTimeout(() => {
+        didLongPress = true;
+        div.classList.remove("long-pressing");
+        navigator.vibrate?.(50);
+        if (puedeEditarProductos()) openProductModal(p);
+      }, 580);
+    };
+
+    const cancelLongPress = () => {
+      clearTimeout(lpTimer);
+      div.classList.remove("long-pressing");
+    };
+
+    div.addEventListener("touchstart",  () => startLongPress(), { passive: true });
+    div.addEventListener("touchend",    cancelLongPress);
+    div.addEventListener("touchmove",   cancelLongPress);
+    div.addEventListener("touchcancel", cancelLongPress);
+    div.addEventListener("mousedown",   e => { if (e.button === 0) startLongPress(); });
+    div.addEventListener("mouseup",     cancelLongPress);
+    div.addEventListener("mouseleave",  cancelLongPress);
+    div.addEventListener("contextmenu", e => { e.preventDefault(); cancelLongPress(); if (puedeEditarProductos()) openProductModal(p); });
+    div.addEventListener("click", () => {
+      if (didLongPress) { didLongPress = false; return; }
+      addToCart(p);
+    });
+
+    grid.appendChild(div);
+  });
+}
+
+function recargarProductos() {
+  const stateEl = document.getElementById("stateCenter");
+  document.getElementById("grid").innerHTML = "";
+  stateEl.style.display = "flex";
+  stateEl.innerHTML = '<div class="spinner"></div>';
+  cargarProductosSupabase(true);
+}
+
+/* ═══════════════════════════════════════
+   CARRITO
+═══════════════════════════════════════ */
+function addToCart(prod) {
+  const item = carrito.find(i => i.id === prod.id);
+  if (item) item.cantidad++;
+  else carrito.push({ id: prod.id, nombre: prod.nombre, precio: prod.precio, cantidad: 1 });
+
+  updateTotal();
+  if (drawerOpen) renderCartItems();
+  applyFilters();
+  saveCart();
+  navigator.vibrate?.(20);
+}
+
+function changeQty(id, delta) {
+  const idx = carrito.findIndex(i => i.id === id);
+  if (idx === -1) return;
+  carrito[idx].cantidad += delta;
+  if (carrito[idx].cantidad <= 0) carrito.splice(idx, 1);
+  updateTotal();
+  renderCartItems();
+  applyFilters();
+  saveCart();
+}
+
+function removeFromCart(id) {
+  carrito = carrito.filter(i => i.id !== id);
+  saveCart();
+  updateTotal();
+  applyFilters();
+  renderCartItems();
+}
+
+function clearCart() {
+  if (!confirm("¿Vaciar todo el carrito?")) return;
+  if (mesaSeleccionada) mesaSeleccionada.carrito = [];
+  document.getElementById("discount").value     = "";
+  document.getElementById("discountDesc").value = "";
+  currentDiscount = 0;
+  saveCart();
+  updateTotal();
+  applyFilters();
+  renderCartItems();
+  navigator.vibrate?.(30);
+}
+
+async function saveCart() {
+  if (!mesaSeleccionada) return;
+  clearTimeout(saveTimeout);
+
+  saveTimeout = setTimeout(async () => {
+    if (savingCart) return;
+    savingCart = true;
+
+    try {
+      const subtotal = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+      const descuento = parseFloat(document.getElementById("discount").value) || 0;
+      const total = subtotal - subtotal * descuento / 100;
+      const carritoClonado = JSON.parse(JSON.stringify(carrito));
+
+      const { error } = await window.supabase_res
+        .from("mesas")
+        .update({
+          carrito:      carritoClonado,
+          subtotal,
+          descuento,
+          total,
+          mesa_cerrada: carritoClonado.length === 0
+        })
+        .eq("id", mesaSeleccionada.id);
+
+      if (error) console.error(error);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      savingCart = false;
+    }
+  }, 120);
+}
+
+function loadCart() {}
+
+/* ═══════════════════════════════════════
+   TOTALES Y DRAWER
+═══════════════════════════════════════ */
+function updateTotal() {
+  const subtotal = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+  const discPct  = parseFloat(document.getElementById("discount")?.value) || 0;
+  currentDiscount = subtotal * Math.min(discPct, 100) / 100;
+  const total = subtotal - currentDiscount;
+
+  const el = document.getElementById("totalAmount");
+  if (!el) return;
+  el.textContent = fmt(total);
+  el.classList.toggle("active", total > 0);
+  el.classList.remove("bump");
+  void el.offsetWidth;
+  el.classList.add("bump");
+
+  const totalItems = carrito.reduce((s, i) => s + i.cantidad, 0);
+  const fab = document.getElementById("fab");
+  document.getElementById("fabBadge").textContent = totalItems;
+  fab.classList.toggle("hidden", totalItems === 0);
+
+  updatePayButtons();
+  updateDrawerTotal();
+}
+
+function openDrawer() {
+  drawerOpen = true;
+  document.getElementById("drawer").classList.add("open");
+  document.getElementById("overlay").classList.add("open");
+  document.body.style.overflow = "hidden";
+  renderCartItems();
+  updateDrawerTotal();
+}
+
+function closeDrawer() {
+  drawerOpen = false;
+  document.getElementById("drawer").classList.remove("open");
+  document.getElementById("overlay").classList.remove("open");
+  document.body.style.overflow = "";
+}
+
+function renderCartItems() {
+  const cont = document.getElementById("drawerItems");
+  if (carrito.length === 0) {
+    cont.innerHTML = `
+      <div class="empty-cart">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+        <p>El carrito está vacío</p>
+      </div>`;
+    return;
+  }
+
+  cont.innerHTML = "";
+  carrito.forEach(item => {
+    const div = document.createElement("div");
+    div.className = "cart-item";
+    div.innerHTML = `
+      <div class="ci-info">
+        <div class="ci-name">${item.nombre}</div>
+        <div class="ci-unit">${fmt(item.precio)} c/u</div>
+      </div>
+      <div class="qty-ctrl">
+        <button class="qty-btn" onclick="changeQty('${item.id}', -1)">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>
+        </button>
+        <span class="qty-val">${item.cantidad}</span>
+        <button class="qty-btn" onclick="changeQty('${item.id}', 1)">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+        </button>
+      </div>
+      <div class="ci-total">${fmt(item.precio * item.cantidad)}</div>
+      <button class="ci-remove" onclick="removeFromCart('${item.id}')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+      </button>
+    `;
+    cont.appendChild(div);
+  });
+}
+
+function updateDrawerTotal() {
+  const subtotalEl = document.getElementById("subtotalVal");
+  if (!subtotalEl) return;
+
+  const subtotal   = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+  const discPct    = parseFloat(document.getElementById("discount")?.value) || 0;
+  const clampedPct = Math.min(Math.max(discPct, 0), 100);
+  currentDiscount  = subtotal * clampedPct / 100;
+  const total      = subtotal - currentDiscount;
+
+  subtotalEl.textContent = fmt(subtotal);
+  document.getElementById("cartTotal").textContent = fmt(total);
+
+  const discRow = document.getElementById("discountRow");
+  if (currentDiscount > 0) {
+    discRow.style.display = "flex";
+    document.getElementById("discountLabel").textContent = `Descuento (${clampedPct}%)`;
+    document.getElementById("discountVal").textContent   = "-" + fmt(currentDiscount);
+  } else {
+    discRow.style.display = "none";
+  }
+
+  const totalEl = document.getElementById("totalAmount");
+  if (totalEl) {
+    totalEl.textContent = fmt(total);
+    totalEl.classList.toggle("active", total > 0);
+  }
+}
+
+function updatePayButtons() {
+  const disabled = carrito.length === 0 || !puedeCobrar();
+
+  ["btnEfectivo", "btnDebito", "btnCredito"].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.disabled     = disabled;
+    el.style.display = puedeCobrar() ? "inline-flex" : "none";
+  });
+
+  const clearBtn = document.getElementById("clearBtn");
+  if (clearBtn) clearBtn.disabled = carrito.length === 0;
+}
+
+/* ═══════════════════════════════════════
+   CALCULADORA DE VUELTO
+═══════════════════════════════════════ */
+function calcularTotalActual() {
+  return carrito.reduce((s, i) => s + i.precio * i.cantidad, 0) - currentDiscount;
+}
+
+function abrirCambio(metodo) {
+  if (!puedeCobrar()) { showToast("No tienes permisos", "error"); return; }
+  if (carrito.length === 0) return;
+  cambioMetodo = metodo;
+
+  const total = calcularTotalActual();
+  document.getElementById("cambioTotalVal").textContent  = fmt(total);
+  document.getElementById("cambioMonto").value           = "";
+  document.getElementById("cambioResultVal").textContent = "—";
+  document.getElementById("cambioResultVal").className   = "cambio-result-val";
+  document.getElementById("cambioPagarBtn").disabled     = true;
+
+  const quickBtns = document.getElementById("cambioQuickBtns");
+  const redondeos = generarRedondeos(total);
+
+  quickBtns.innerHTML = redondeos.map(v =>
+    `<button class="cambio-quick-btn" onclick="setMontoRapido(${v})">${fmt(v)}</button>`
+  ).join("");
+
+  if (redondeos.length > 0) {
+    setMontoRapido(redondeos[0]);
+    quickBtns.querySelectorAll(".cambio-quick-btn")[0]?.classList.add("active");
+  }
+
+  document.getElementById("cambioModalOverlay").classList.add("open");
+  setTimeout(() => document.getElementById("cambioMonto").focus(), 200);
+}
+
+function generarRedondeos(total) {
+  const redondeos = [];
+  for (const b of [100, 200, 500, 1000, 2000, 5000, 10000]) {
+    const r = Math.ceil(total / b) * b;
+    if (!redondeos.includes(r) && redondeos.length < 6) redondeos.push(r);
+  }
+  return redondeos.slice(0, 6);
+}
+
+function setMontoRapido(val) {
+  document.getElementById("cambioMonto").value = val;
+  document.querySelectorAll(".cambio-quick-btn").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".cambio-quick-btn").forEach(b => {
+    if (b.textContent === fmt(val)) b.classList.add("active");
+  });
+  calcularCambio();
+}
+
+function calcularCambio() {
+  const total    = calcularTotalActual();
+  const monto    = parseFloat(document.getElementById("cambioMonto").value) || 0;
+  const vuelto   = monto - total;
+  const resultEl = document.getElementById("cambioResultVal");
+  const pagarBtn = document.getElementById("cambioPagarBtn");
+
+  if (!monto) {
+    resultEl.textContent = "—";
+    resultEl.className   = "cambio-result-val";
+    pagarBtn.disabled    = true;
+    return;
+  }
+
+  resultEl.textContent = fmt(vuelto);
+  resultEl.className   = "cambio-result-val" + (vuelto < 0 ? " negativo" : "");
+  pagarBtn.disabled    = vuelto < 0;
+}
+
+function cerrarCambio() {
+  document.getElementById("cambioModalOverlay").classList.remove("open");
+}
+
+function handleCambioOverlayClick(e) {
+  if (e.target === document.getElementById("cambioModalOverlay")) cerrarCambio();
+}
+
+function confirmarPagoEfectivo() {
+  cerrarCambio();
+  pagar(cambioMetodo);
+}
+
+/* ═══════════════════════════════════════
+   PAGO
+═══════════════════════════════════════ */
+async function pagar(metodo) {
+  if (!puedeCobrar()) { showToast("No tienes permisos", "error"); return; }
+  if (carrito.length === 0) return;
+
+  const desc  = document.getElementById("discountDesc").value || "Sin descripción";
+  const items = carrito.map(i => ({
+    nombre: i.nombre, cantidad: i.cantidad, precio: i.precio,
+    total:  i.precio * i.cantidad, id: i.id, mesa: mesaSeleccionada.nombre
+  }));
+
+  if (currentDiscount > 0) {
+    items.push({ id: "descuento", nombre: "Descuento - " + desc, cantidad: 1,
+      precio: -currentDiscount, total: -currentDiscount, mesa: mesaSeleccionada.nombre });
+  }
+
+  const subtotal = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+  const total    = subtotal - currentDiscount;
+
+  showPayLoader(true);
+  setPayBtnsDisabled(true);
+
+  try {
+    await guardarVentaSupabase({ mesa: mesaSeleccionada, items, subtotal, descuento: currentDiscount, total, metodo });
+
+    const { error: errMesa } = await window.supabase_res
+      .from("mesas")
+      .update({ carrito: [], subtotal: 0, descuento: 0, total: 0, metodo_pago: metodo, mesa_cerrada: true, fecha_cierre: new Date().toISOString() })
+      .eq("id", mesaSeleccionada.id);
+
+    if (errMesa) throw errMesa;
+
+    if (mesaSeleccionada) {
+      mesaSeleccionada.carrito       = [];
+      mesaSeleccionada.descuento     = 0;
+      mesaSeleccionada.descuentoDesc = "";
+    }
+    document.getElementById("discount").value     = "";
+    document.getElementById("discountDesc").value = "";
+    currentDiscount = 0;
+    localStorage.removeItem("carrito");
+    updateTotal();
+    applyFilters();
+    closeDrawer();
+    showToast("Pago procesado (" + metodo + ")", "success");
+    playSuccessSound();
+    setTimeout(() => volverAMesas(), 900);
+  } catch (err) {
+    console.error("Error al procesar pago:", err);
+    showToast("Error al procesar el pago. Intente nuevamente.", "error");
+  } finally {
+    showPayLoader(false);
+    setPayBtnsDisabled(false);
+  }
+}
+
+function showPayLoader(show) {
+  document.getElementById("payLoader").classList.toggle("hidden", !show);
+}
+
+function setPayBtnsDisabled(v) {
+  ["btnEfectivo", "btnDebito", "btnCredito"].forEach(id => {
+    document.getElementById(id).disabled = v;
+  });
+}
+
+/* ═══════════════════════════════════════
+   BUSCADOR
+═══════════════════════════════════════ */
+function handleSearch() {
+  const input = document.getElementById("search").value;
+  document.getElementById("search-clear").style.display = input ? "block" : "none";
+  applyFilters();
+}
+
+function clearSearch() {
+  document.getElementById("search").value = "";
+  document.getElementById("search-clear").style.display = "none";
+  applyFilters();
+}
+
+/* ═══════════════════════════════════════
+   REPORTE
+═══════════════════════════════════════ */
+function openReport() {
+  document.getElementById("reportPanel").classList.add("open");
+  if (ventasCache.length === 0) cargarVentas();
+}
+
+function closeReport() {
+  document.getElementById("reportPanel").classList.remove("open");
+}
+
+function toDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function setQuickFilter(tipo, btn) {
+  document.querySelectorAll(".qf-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  activeQuickFilter = tipo;
+
+  const hoy = new Date();
+  let desde = "", hasta = "";
+
+  if (tipo === "hoy") {
+    desde = hasta = toDateStr(hoy);
+  } else if (tipo === "semana") {
+    const lunes = new Date(hoy);
+    lunes.setDate(hoy.getDate() - hoy.getDay() + (hoy.getDay() === 0 ? -6 : 1));
+    desde = toDateStr(lunes);
+    hasta = toDateStr(hoy);
+  } else if (tipo === "mes") {
+    desde = toDateStr(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
+    hasta = toDateStr(hoy);
+  }
+
+  document.getElementById("fechaDesde").value = desde;
+  document.getElementById("fechaHasta").value = hasta;
+  renderReporte();
+}
+
+async function cargarVentas() {
+  const content = document.getElementById("reportContent");
+  content.innerHTML = `<div class="report-loading"><div class="spinner"></div><span>Cargando ventas...</span></div>`;
+  document.getElementById("reportSubtitle").textContent = "Actualizando...";
+
+  try {
+    const { data, error } = await window.supabase_res
+      .from("ventas")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    ventasCache = [];
+    (data || []).forEach(venta => {
+      (Array.isArray(venta.items) ? venta.items : []).forEach(item => {
+        ventasCache.push({
+          fecha: venta.created_at, metodo: venta.metodo_pago,
+          nombre: item.nombre, cantidad: item.cantidad,
+          precio: item.precio, total: item.total, mesa: item.mesa || ""
+        });
+      });
+    });
+
+    renderReporte();
+  } catch (e) {
+    console.error("Error cargando ventas:", e);
+    content.innerHTML = `
+      <div class="report-empty">
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+        <p>No se pudo cargar el reporte.<br>Verificá tu conexión e intentá nuevamente.</p>
+      </div>`;
+    document.getElementById("reportSubtitle").textContent = "Error al cargar";
+  }
+}
+
+function aplicarFiltro() {
+  document.querySelectorAll(".qf-btn").forEach(b => b.classList.remove("active"));
+  activeQuickFilter = null;
+  renderReporte();
+}
+
+function parseFecha(val) {
+  if (!val) return null;
+  if (val instanceof Date) return val;
+  const s = String(val);
+  const d = new Date(s);
+  if (!isNaN(d)) return d;
+  const parts = s.split(/[\/\-\.]/);
+  if (parts.length === 3) {
+    return parts[0].length === 4
+      ? new Date(parts[0], parts[1] - 1, parts[2])
+      : new Date(parts[2], parts[1] - 1, parts[0]);
+  }
+  return null;
+}
+
+function renderReporte() {
+  const desde = document.getElementById("fechaDesde").value;
+  const hasta = document.getElementById("fechaHasta").value;
+
+  let ventas = ventasCache;
+  if (desde || hasta) {
+    ventas = ventas.filter(v => {
+      const f = parseFecha(v.fecha);
+      if (!f) return false;
+      const fs = toDateStr(f);
+      if (desde && fs < desde) return false;
+      if (hasta && fs > hasta) return false;
+      return true;
+    });
+  }
+
+  const ventasProductos = ventas.filter(v => v.total >= 0 && !String(v.nombre).toLowerCase().startsWith("descuento"));
+  const content = document.getElementById("reportContent");
+
+  if (ventas.length === 0 && ventasCache.length > 0) {
+    content.innerHTML = `<div class="report-empty"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><p>No hay ventas en el período seleccionado.</p></div>`;
+    updateSubtitle(ventas, desde, hasta);
+    return;
+  }
+
+  if (ventasCache.length === 0) {
+    content.innerHTML = `<div class="report-empty"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h2l.4 2"/><path d="M7 13h10l4-8H5.4"/><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/></svg><p>Sin datos de ventas aún.</p></div>`;
+    document.getElementById("reportSubtitle").textContent = "Sin ventas registradas";
+    return;
+  }
+
+  const totalVentas  = ventasProductos.reduce((s, v) => s + (parseFloat(v.total) || 0), 0);
+  const totalItems   = ventasProductos.reduce((s, v) => s + (parseInt(v.cantidad) || 0), 0);
+  const efectivo     = ventas.filter(v => String(v.metodo).toLowerCase() === "efectivo").reduce((s, v) => s + Math.max(parseFloat(v.total) || 0, 0), 0);
+  const transacciones = new Set(ventas.map(v => v.fecha + "_" + v.metodo)).size;
+
+  const prodMap = {};
+  ventasProductos.forEach(v => {
+    const n = v.nombre || "Desconocido";
+    if (!prodMap[n]) prodMap[n] = { cantidad: 0, total: 0 };
+    prodMap[n].cantidad += parseInt(v.cantidad) || 0;
+    prodMap[n].total    += parseFloat(v.total) || 0;
+  });
+
+  const topProductos = Object.entries(prodMap).sort((a, b) => b[1].cantidad - a[1].cantidad).slice(0, 10);
+
+  updateSubtitle(ventas, desde, hasta);
+
+  content.innerHTML = `
+    <div class="summary-grid">
+      <div class="summary-card green"><div class="summary-label">Total vendido</div><div class="summary-value">${fmt(totalVentas)}</div></div>
+      <div class="summary-card"><div class="summary-label">Unidades</div><div class="summary-value">${totalItems.toLocaleString("es-UY")}</div></div>
+      <div class="summary-card blue"><div class="summary-label">Efectivo</div><div class="summary-value">${fmt(efectivo)}</div></div>
+      <div class="summary-card purple"><div class="summary-label">Transacciones</div><div class="summary-value">${transacciones}</div></div>
+    </div>
+    <div class="chart-card">
+      <h3>Productos más vendidos (por unidades)</h3>
+      <div class="chart-wrap"><canvas id="reportChartCanvas"></canvas></div>
+    </div>
+    <div class="table-card">
+      <h3>Ventas agrupadas (${transacciones} transacciones)</h3>
+      <div id="ventasGrupoContainer"></div>
+    </div>
+  `;
+
+  renderChart(topProductos);
+  renderVentasAgrupadas(ventas);
+}
+
+function renderVentasAgrupadas(ventas) {
+  const container = document.getElementById("ventasGrupoContainer");
+  if (!container) return;
+
+  if (ventas.length === 0) {
+    container.innerHTML = `<div class="report-empty"><p>Sin registros.</p></div>`;
+    return;
+  }
+
+  const grupos = {};
+  ventas.forEach(v => {
+    const fecha    = parseFecha(v.fecha);
+    const fechaStr = fecha
+      ? fecha.toLocaleDateString("es-UY", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
+      : (v.fecha || "?");
+    const clave = v.fecha + "___" + v.metodo;
+    if (!grupos[clave]) grupos[clave] = { fechaStr, fecha: v.fecha, metodo: v.metodo, items: [], total: 0 };
+    grupos[clave].items.push(v);
+    grupos[clave].total += parseFloat(v.total) || 0;
+  });
+
+  const gruposArr = Object.values(grupos).sort((a, b) => {
+    return (parseFecha(b.fecha) || 0) - (parseFecha(a.fecha) || 0);
+  });
+
+  const visible = gruposArr.slice(0, 100);
+  container.innerHTML = visible.map((g, idx) => {
+    const metodo     = String(g.metodo || "").toLowerCase();
+    const badgeClass = metodo === "efectivo" ? "badge-efectivo" : metodo === "debito" ? "badge-debito" : metodo === "credito" ? "badge-credito" : "";
+    const itemsHtml  = g.items.map(v => {
+      const esDescuento = String(v.nombre).toLowerCase().startsWith("descuento");
+      return `<div class="venta-item-row${esDescuento ? " descuento" : ""}">
+        <span class="venta-item-nombre">${v.nombre || "-"}</span>
+        <span class="venta-item-cant">x${v.cantidad || 1}</span>
+        <span class="venta-item-total">${v.total != null ? fmt(parseFloat(v.total)) : "-"}</span>
+      </div>`;
+    }).join("");
+
+    return `<div class="venta-grupo" id="vg_${idx}">
+      <div class="venta-grupo-header" onclick="toggleGrupo(${idx})">
+        <div class="venta-grupo-left">
+          <div class="venta-grupo-fecha">${g.fechaStr}</div>
+          <div class="venta-grupo-meta">${g.items.length} producto${g.items.length !== 1 ? "s" : ""} · <span class="badge-metodo ${badgeClass}">${g.metodo || "-"}</span></div>
+        </div>
+        <div class="venta-grupo-right">
+          <span class="venta-grupo-total">${fmt(g.total)}</span>
+          <svg class="venta-grupo-toggle" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+      </div>
+      <div class="venta-grupo-items">${itemsHtml}</div>
+    </div>`;
+  }).join("") + (gruposArr.length > 100 ? `<p style="text-align:center;font-size:12px;color:var(--muted-fg);padding:8px 0">Mostrando 100 de ${gruposArr.length} transacciones</p>` : "");
+}
+
+function toggleGrupo(idx) {
+  document.getElementById("vg_" + idx)?.classList.toggle("open");
+}
+
+function updateSubtitle(ventas, desde, hasta) {
+  const sub = document.getElementById("reportSubtitle");
+  const transacciones = new Set(ventas.map(v => v.fecha + "_" + v.metodo)).size;
+  if (!desde && !hasta)       sub.textContent = `${transacciones} transacciones en total`;
+  else if (desde && hasta)    sub.textContent = `${desde} — ${hasta} · ${transacciones} transacciones`;
+  else if (desde)             sub.textContent = `Desde ${desde} · ${transacciones} transacciones`;
+  else                        sub.textContent = `Hasta ${hasta} · ${transacciones} transacciones`;
+}
+
+function renderChart(topProductos) {
+  if (reportChart) { reportChart.destroy(); reportChart = null; }
+  const canvas = document.getElementById("reportChartCanvas");
+  if (!canvas || topProductos.length === 0) return;
+
+  reportChart = new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels: topProductos.map(([name]) => name.length > 20 ? name.slice(0, 18) + "…" : name),
+      datasets: [{
+        label: "Unidades vendidas",
+        data: topProductos.map(([, d]) => d.cantidad),
+        backgroundColor: ["#2563eb","#10b981","#8b5cf6","#f59e0b","#ef4444","#06b6d4","#ec4899","#84cc16","#f97316","#6366f1"].slice(0, topProductos.length),
+        borderRadius: 6,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y} unidades` } }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { family: "Inter", size: 11 }, color: "#64748b" } },
+        y: { beginAtZero: true, grid: { color: "#e2e8f0" }, ticks: { font: { family: "Inter", size: 11 }, color: "#64748b", stepSize: 1 } }
+      }
+    }
+  });
+}
+
+/* ═══════════════════════════════════════
+   MODAL PRODUCTO
+═══════════════════════════════════════ */
+function openProductModal(producto) {
+  editingProductId = producto ? producto.id : null;
+  const isEdit = !!producto;
+
+  document.getElementById("productModalTitle").textContent = isEdit ? "Editar Producto" : "Agregar Producto";
+  document.getElementById("prodId").value          = producto ? producto.id : "";
+  document.getElementById("prodNombre").value      = producto ? producto.nombre : "";
+  document.getElementById("prodDescripcion").value = producto ? (producto.descripcion || "") : "";
+  document.getElementById("prodPrecio").value      = producto ? producto.precio : "";
+  document.querySelectorAll(".cat-option").forEach(r => { r.checked = producto ? r.value === producto.categoria : false; });
+
+  const mostrarCarta = producto ? (producto.mostrar_carta !== false) : true;
+  document.getElementById("prodMostrarCarta").checked = mostrarCarta;
+  actualizarTextoToggle(mostrarCarta);
+
+  const mostrarPrecioCarta = producto ? (producto.mostrar_precio_carta !== false) : true;
+  document.getElementById("prodMostrarPrecioCarta").checked = mostrarPrecioCarta;
+  actualizarTextoTogglePrecio(mostrarPrecioCarta);
+
+  document.getElementById("prodNombre").classList.remove("invalid");
+  document.getElementById("prodPrecio").classList.remove("invalid");
+  document.getElementById("deleteProductBtn").style.display = isEdit ? "flex" : "none";
+
+  document.getElementById("productModalOverlay").classList.add("open");
+  setTimeout(() => document.getElementById("prodNombre").focus(), 320);
+}
+
+function closeProductModal() {
+  document.getElementById("productModalOverlay").classList.remove("open");
+  editingProductId = null;
+}
+
+function handleModalOverlayClick(e) {
+  if (e.target === document.getElementById("productModalOverlay")) closeProductModal();
+}
+
+async function guardarProducto() {
+  const nombre      = document.getElementById("prodNombre").value.trim();
+  const descripcion = document.getElementById("prodDescripcion").value.trim();
+  const precio      = parseFloat(document.getElementById("prodPrecio").value);
+  const categoria   = document.querySelector(".cat-option:checked")?.value || "";
+  const mostrar_carta         = document.getElementById("prodMostrarCarta").checked;
+  const mostrar_precio_carta  = document.getElementById("prodMostrarPrecioCarta").checked;
+  const id = editingProductId;
+
+  let valid = true;
+
+  if (!nombre) { document.getElementById("prodNombre").classList.add("invalid"); valid = false; }
+  else          document.getElementById("prodNombre").classList.remove("invalid");
+
+  if (!precio || precio <= 0) { document.getElementById("prodPrecio").classList.add("invalid"); valid = false; }
+  else                          document.getElementById("prodPrecio").classList.remove("invalid");
+
+  if (!categoria) { showToast("Seleccioná una categoría.", "error"); valid = false; }
+  if (!valid) return;
+
+  const btn = document.getElementById("saveProductBtn");
+  btn.disabled = true;
+  btn.classList.add("loading");
+
+  try {
+    if (id) {
+      const { error } = await window.supabase_res
+        .from("productos")
+        .update({ nombre, descripcion, precio, categoria, mostrar_carta, mostrar_precio_carta })
+        .eq("id", id);
+      if (error) throw error;
+    } else {
+      const { error } = await window.supabase_res
+        .from("productos")
+        .insert({ nombre, descripcion, precio, categoria, activo: true, mostrar_carta, mostrar_precio_carta });
+      if (error) throw error;
+    }
+
+    showToast((id ? "Producto actualizado: " : "Producto agregado: ") + nombre, "success");
+    closeProductModal();
+    localStorage.removeItem("productos");
+    localStorage.removeItem("productos_timestamp");
+    cargarProductosSupabase(true);
+  } catch (err) {
+    console.error("Error guardando producto:", err);
+    showToast("No se pudo guardar el producto. Intentá nuevamente.", "error");
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove("loading");
+  }
+}
+
+async function eliminarProducto() {
+  if (!editingProductId) return;
+  if (!confirm("¿Eliminar este producto? Esta acción no se puede deshacer.")) return;
+
+  const btn = document.getElementById("saveProductBtn");
+  btn.disabled = true;
+
+  try {
+    const { error } = await window.supabase_res
+      .from("productos")
+      .update({ activo: false })
+      .eq("id", editingProductId);
+
+    if (error) throw error;
+
+    showToast("Producto eliminado.", "success");
+    closeProductModal();
+    localStorage.removeItem("productos");
+    localStorage.removeItem("productos_timestamp");
+    recargarProductos(true);
+  } catch (err) {
+    console.error("Error eliminando producto:", err);
+    showToast("No se pudo eliminar el producto. Intentá nuevamente.", "error");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* ═══════════════════════════════════════
+   RESPALDO
+═══════════════════════════════════════ */
+async function generarRespaldo() {
+  const btn = document.getElementById("backupBtn");
+  btn.disabled = true;
+  btn.classList.add("loading");
+
+  try {
+    const { data, error } = await window.supabase_res
+      .from("ventas")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    const blob  = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url   = URL.createObjectURL(blob);
+    const a     = document.createElement("a");
+    a.href      = url;
+    a.download  = `respaldo_ventas_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    showToast("Respaldo descargado correctamente.", "success");
+  } catch (err) {
+    console.error("Error en respaldo:", err);
+    showToast("Error al generar el respaldo.", "error");
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove("loading");
+  }
+}
+
+/* ═══════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════ */
+function fmt(n) {
+  return "$" + Math.round(n).toLocaleString("es-UY");
+}
+
+function showToast(msg, type = "success") {
+  const wrap = document.getElementById("toastWrap");
+  const t = document.createElement("div");
+  t.className = "toast " + type;
+  t.textContent = msg;
+  wrap.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+function normalizarTexto(str) {
+  return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function capitalizarTexto(str) {
+  return str.toLowerCase().trim().split(/\s+/).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
+}
+
+function playSuccessSound() {
+  navigator.vibrate?.(200);
+  const audio = document.getElementById("successSound");
+  if (!audio) return;
+  audio.currentTime = 0;
+  audio.play().catch(() => {});
+}
+
+function actualizarTextoToggle(checked) {
+  const onText  = document.getElementById("toggleCartaOn");
+  const offText = document.getElementById("toggleCartaOff");
+  if (!onText || !offText) return;
+  onText.style.display  = checked ? "inline" : "none";
+  offText.style.display = checked ? "none"   : "inline";
+
+  const rowPrecio  = document.getElementById("rowMostrarPrecio");
+  const hintPrecio = document.getElementById("hintMostrarPrecio");
+  if (rowPrecio)  { rowPrecio.style.opacity = checked ? "1" : "0.4"; rowPrecio.style.pointerEvents = checked ? "auto" : "none"; }
+  if (hintPrecio)   hintPrecio.style.opacity = checked ? "1" : "0.4";
+}
+
+function actualizarTextoTogglePrecio(checked) {
+  const onText  = document.getElementById("togglePrecioOn");
+  const offText = document.getElementById("togglePrecioOff");
+  if (!onText || !offText) return;
+  onText.style.display  = checked ? "inline" : "none";
+  offText.style.display = checked ? "none"   : "inline";
+}
+
+/* ═══════════════════════════════════════
+   INIT
+═══════════════════════════════════════ */
+document.addEventListener("DOMContentLoaded", async () => {
+  document.getElementById("loginUser").addEventListener("keydown", e => {
+    if (e.key === "Enter") document.getElementById("loginPass").focus();
+  });
+  document.getElementById("loginPass").addEventListener("keydown", e => {
+    if (e.key === "Enter") doLogin();
+  });
+  document.getElementById("nombreModalInput")?.addEventListener("keydown", e => {
+    if (e.key === "Enter")  guardarNombreMesa();
+    if (e.key === "Escape") cerrarNombreModal();
+  });
+  document.getElementById("prodMostrarCarta")?.addEventListener("change", function() {
+    actualizarTextoToggle(this.checked);
+  });
+  document.getElementById("prodMostrarPrecioCarta")?.addEventListener("change", function() {
+    actualizarTextoTogglePrecio(this.checked);
+  });
+
+  const logged = await checkSession();
+  if (logged) {
+    await initMesas();
+    iniciarRealtimeMesas();
+    showMesasScreen();
+    cargarProductosSupabase();
+  } else {
+    showLogin();
+  }
+});
+</script>
+</body>
+</html>
