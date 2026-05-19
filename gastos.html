@@ -2325,7 +2325,7 @@ async function confirmarGasto() {
     const d = gastoParseado;
 
     // 1. Insertar cabecera en tabla gastos
-    const { data: gastoRow, error: errGasto } = await window.supabase_res
+    const { data: gastoRow, error: errGasto } = await supabase_res
       .from("gastos")
       .insert({
         empresa:          d.empresa        || null,
