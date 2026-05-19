@@ -2343,7 +2343,7 @@ async function confirmarGasto() {
         subtotal:         d.subtotal       ?? null,
         total:            d.total          ?? 0,
         observaciones:    Array.isArray(d.observaciones) ? d.observaciones.join(" ") : (d.observaciones || null),
-        usuario_id:       usuarioActual?.id || null,
+        usuario_username: usuarioActual?.username || null,
         json_original:    d
       })
       .select("id")
