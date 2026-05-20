@@ -6,6 +6,13 @@ const API_DESA = "https://script.google.com/macros/s/AKfycbxp_wu_QYynsh1S5gMxQBK
                 //"https://script.google.com/macros/s/AKfycbw5B721kgIQ32F-NIMlrU351lg-gSTsg0fqJVsXk8xesHYh6pn7MtQbjiTi47QquuTy/exec"; 
                 //"https://script.google.com/macros/s/AKfycbyLNPKzt0ROtLnBE5ICTZS9hGfFmpc5GEEFmw3W5qhNMMt_gK5GoqdwAYL23MmzicZxdw/exec";
 
+/* ============ SUPABASE ========*/
+const SUPABASE_URL_PROD = "https://rdxnnngdnslxnsgtgqzf.supabase.co";
+const SUPABASE_KEY_PROD = "sb_publishable_hfbsKDlF0mPBNIbU7ACCeg_p2WZsMGh";
+
+const SUPABASE_URL_DESA = "https://vrptuoncsmgtzwkoodee.supabase.co";
+const SUPABASE_KEY_DESA = "sb_publishable_YiPcokZRtA-8fKkq8eMW9w_YCSnw84j";
+
 /* ========== MESAS ========== */
 const MESA_COUNT = 5; // ← Cambiar para configurar la cantidad de mesas
 
