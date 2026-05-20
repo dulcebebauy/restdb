@@ -333,6 +333,28 @@
   color: #64748b;
   margin-left: 6px;
 }
+.gasto-rubro-select {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 2px 22px 2px 8px;
+  margin-left: 6px;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  transition: border-color .15s, color .15s;
+  max-width: 130px;
+}
+.gasto-rubro-select:focus { border-color: #1d4ed8; color: #1d4ed8; }
+.gasto-rubro-select.asignado { background-color: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
 .gasto-total-row {
   display: flex;
   justify-content: space-between;
@@ -2262,21 +2284,34 @@ function fmtUYU(n) {
   return "$\u00a0" + Number(n).toLocaleString("es-UY", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+const RUBROS_GASTO = ["", "Rotisería", "Cafetería", "Limpieza", "Administrativo", "Otros"];
+
 function renderGastoPreview(d) {
   const productos = Array.isArray(d.productos) ? d.productos : [];
   const formas    = Array.isArray(d.forma_pago) ? d.forma_pago : [];
-  const descuentos= Array.isArray(d.descuentos)  ? d.descuentos  : [];
-  const impuestos = Array.isArray(d.impuestos)   ? d.impuestos   : [];
+  const descuentos= Array.isArray(d.descuentos) ? d.descuentos : [];
+  const impuestos = Array.isArray(d.impuestos)  ? d.impuestos  : [];
 
-  let itemsHTML = productos.map(p => `
-    <div class="gasto-item-row">
-      <span class="gasto-item-desc">
+  let itemsHTML = productos.map((p, i) => {
+    const rubroOpts = RUBROS_GASTO.map(r =>
+      `<option value="${escHtml(r)}" ${p.rubro === r ? "selected" : ""}>${r || "— rubro —"}</option>`
+    ).join("");
+    return `
+    <div class="gasto-item-row" style="flex-wrap:wrap;gap:4px 8px;">
+      <span class="gasto-item-desc" style="flex:1;min-width:0;">
         ${escHtml(p.descripcion || "—")}
-        ${p.rubro ? `<span class="gasto-rubro-badge">${escHtml(p.rubro)}</span>` : ""}
       </span>
       <span class="gasto-item-qty">${p.cantidad} ${p.unidad || ""}</span>
       <span class="gasto-item-price">${fmtUYU(p.subtotal ?? p.precio_unitario ?? 0)}</span>
-    </div>`).join("");
+      <div style="width:100%;padding-left:2px;">
+        <select class="gasto-rubro-select${p.rubro ? " asignado" : ""}"
+                data-idx="${i}"
+                onchange="onRubroChange(this)">
+          ${rubroOpts}
+        </select>
+      </div>
+    </div>`;
+  }).join("");
 
   let pagosHTML = formas.map(f => `
     <div class="gasto-pago-row">
@@ -2290,10 +2325,10 @@ function renderGastoPreview(d) {
       <span>-${fmtUYU(d2.monto ?? 0)}</span>
     </div>`).join("");
 
-  let ivaHTML = impuestos.map(i => `
+  let ivaHTML = impuestos.map(im => `
     <div class="gasto-pago-row">
-      <span>${escHtml(i.tipo || "IVA")}</span>
-      <span>${fmtUYU(i.monto ?? 0)}</span>
+      <span>${escHtml(im.tipo || "IVA")}</span>
+      <span>${fmtUYU(im.monto ?? 0)}</span>
     </div>`).join("");
 
   document.getElementById("gastosPreviewCard").innerHTML = `
@@ -2309,7 +2344,12 @@ function renderGastoPreview(d) {
 
     ${productos.length ? `
     <div class="gasto-preview-section">
-      <div class="gasto-preview-section-title">Productos (${productos.length})</div>
+      <div class="gasto-preview-section-title">
+        Productos (${productos.length})
+        <span style="font-size:10px;font-weight:500;color:#94a3b8;margin-left:6px;text-transform:none;letter-spacing:0;">
+          · asigná el rubro a cada ítem
+        </span>
+      </div>
       ${itemsHTML}
     </div>` : ""}
 
@@ -2330,6 +2370,12 @@ function renderGastoPreview(d) {
   `;
 }
 
+function onRubroChange(select) {
+  const idx = parseInt(select.dataset.idx, 10);
+  if (!gastoParseado || !Array.isArray(gastoParseado.productos)) return;
+  gastoParseado.productos[idx].rubro = select.value || null;
+  select.classList.toggle("asignado", !!select.value);
+}
 function escHtml(str) {
   return String(str)
     .replace(/&/g,"&amp;")
