@@ -2285,7 +2285,9 @@ function fmtUYU(n) {
 }
 
 const RUBROS_GASTO = ["", "Rotisería", "Cafetería", "Limpieza", "Administrativo", "Otros"];
-
+function normalizarRubro(str) {
+  return String(str || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+}
 function renderGastoPreview(d) {
   const productos = Array.isArray(d.productos) ? d.productos : [];
   const formas    = Array.isArray(d.forma_pago) ? d.forma_pago : [];
@@ -2294,7 +2296,7 @@ function renderGastoPreview(d) {
 
   let itemsHTML = productos.map((p, i) => {
     const rubroOpts = RUBROS_GASTO.map(r =>
-      `<option value="${escHtml(r)}" ${p.rubro === r ? "selected" : ""}>${r || "— rubro —"}</option>`
+      `<option value="${escHtml(r)}" ${normalizarRubro(p.rubro) === normalizarRubro(r) ? "selected" : ""}>${r || "— rubro —"}</option>`
     ).join("");
     return `
     <div class="gasto-item-row" style="flex-wrap:wrap;gap:4px 8px;">
@@ -2368,6 +2370,13 @@ function renderGastoPreview(d) {
       </div>
     </div>
   `;
+  // Normalizar rubros del gastoParseado contra el array al renderizar
+  if (gastoParseado && Array.isArray(gastoParseado.productos)) {
+    gastoParseado.productos.forEach((p, i) => {
+      const match = RUBROS_GASTO.find(r => r && normalizarRubro(r) === normalizarRubro(p.rubro));
+      if (match) gastoParseado.productos[i].rubro = match;
+    });
+  }
 }
 
 function onRubroChange(select) {
