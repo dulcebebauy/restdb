@@ -857,6 +857,7 @@ const CATEGORY_EMOJI = {
 /* ═══════════════════════════════════════
    REALTIME
 ═══════════════════════════════════════ */
+// 3. Modificar iniciarRealtimeMesas() — ignorar el evento si viene de un save propio reciente
 function iniciarRealtimeMesas() {
   if (mesasChannel) window.supabase_res.removeChannel(mesasChannel);
 
@@ -870,16 +871,30 @@ function iniciarRealtimeMesas() {
       mesas.sort((a, b) => a.numero - b.numero);
 
       if (mesaSeleccionada && mesaSeleccionada.id === nuevaMesa.id) {
-        mesaSeleccionada = mesas.find(m => m.id === nuevaMesa.id);
-        updateTotal();
-        if (drawerOpen) renderCartItems();
-        applyFilters();
+        
+        // ← AGREGAR ESTE BLOQUE: si el evento llegó poco después de un save propio,
+        //   actualizar solo datos que no sean el carrito (para no pisarlo)
+        const esSavePropio = (Date.now() - lastSelfSaveAt) < SELF_SAVE_IGNORE_MS;
+        
+        if (esSavePropio) {
+          // Solo sincronizar nombre/descuento que pudo haber cambiado otro usuario,
+          // pero NO tocar el carrito local que es más reciente
+          mesaSeleccionada.nombre    = nuevaMesa.nombre;
+          mesaSeleccionada.descuento = nuevaMesa.descuento;
+          // NO hacer: mesaSeleccionada = mesas.find(...)  ← esto pisaría el carrito local
+        } else {
+          // Evento de otro dispositivo/usuario: sí sincronizar todo
+          mesaSeleccionada = mesas.find(m => m.id === nuevaMesa.id);
+          updateTotal();
+          if (drawerOpen) renderCartItems();
+          applyFilters();
+        }
       }
+      
       renderMesas();
     })
     .subscribe();
 }
-
 function mapMesa(m) {
   return {
     id:           m.id,
@@ -1410,6 +1425,11 @@ function clearCart() {
   navigator.vibrate?.(30);
 }
 
+// 1. Agregar variable de control global (junto al resto de variables globales)
+let lastSelfSaveAt = 0;
+const SELF_SAVE_IGNORE_MS = 2000; // ignorar eventos Realtime por 2 segundos después de un save propio
+
+// 2. Modificar saveCart() — marcar el timestamp antes de guardar
 async function saveCart() {
   if (!mesaSeleccionada) return;
   clearTimeout(saveTimeout);
@@ -1417,6 +1437,7 @@ async function saveCart() {
   saveTimeout = setTimeout(async () => {
     if (savingCart) return;
     savingCart = true;
+    lastSelfSaveAt = Date.now(); // ← AGREGAR ESTO
 
     try {
       const subtotal = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
