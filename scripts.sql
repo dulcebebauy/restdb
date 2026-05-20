@@ -64,7 +64,44 @@ USING (true)
 WITH CHECK (true);
 
 
+CREATE POLICY "Usuarios autenticados pueden ver gastos"
+ON gastos
+FOR SELECT
+TO authenticated
+USING (true);
 
+CREATE POLICY "Usuarios autenticados pueden insertar gastos"
+ON gastos
+FOR INSERT
+TO authenticated
+WITH CHECK (true);
+
+CREATE POLICY "Usuarios autenticados pueden actualizar gastos"
+ON gastos
+FOR UPDATE
+TO authenticated
+USING (true)
+WITH CHECK (true);
+
+
+CREATE POLICY "Usuarios autenticados pueden ver gastos_items"
+ON gastos_items
+FOR SELECT
+TO authenticated
+USING (true);
+
+CREATE POLICY "Usuarios autenticados pueden insertar gastos_items"
+ON gastos_items
+FOR INSERT
+TO authenticated
+WITH CHECK (true);
+
+CREATE POLICY "Usuarios autenticados pueden actualizar gastos_items"
+ON gastos_items
+FOR UPDATE
+TO authenticated
+USING (true)
+WITH CHECK (true);
 -- ================================================================
 -- CONTADOR DE VENTAS POR PRODUCTO
 -- Ejecutar en el SQL Editor de Supabase

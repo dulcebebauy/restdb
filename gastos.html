@@ -16,6 +16,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="config.js"></script>
 <link rel="stylesheet" href="pos.css">
+<link rel="stylesheet" href="reporte_gastos.css">
 <style>
 .mesa-card {
   background: #fff;
@@ -478,6 +479,15 @@
           </svg>
           Reporte
         </button>
+        <button class="admin-menu-item" onclick="adminMenuAction('reporte-gastos')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          Reporte gastos
+        </button>
         <button class="admin-menu-item" onclick="adminMenuAction('producto')">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M5 12h14"/><path d="M12 5v14"/>
@@ -821,6 +831,52 @@
     <div class="nombre-modal-btns">
       <button class="btn-cancelar-nombre" onclick="cerrarNombreModal()">Cancelar</button>
       <button class="btn-guardar-nombre"  onclick="guardarNombreMesa()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     PANEL REPORTE GASTOS
+══════════════════════════════════════ -->
+<div class="gastos-report-panel" id="gastosReportPanel">
+  <div class="gastos-header">
+    <div class="gastos-header-row1">
+      <button class="icon-btn" onclick="closeGastosReport()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div class="gastos-header-title">Reporte de Gastos</div>
+      <button class="backup-btn" onclick="cargarGastos()" title="Actualizar" style="margin-left:auto;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="gastos-body" style="gap:14px;">
+    <!-- Filtros -->
+    <div class="filter-card">
+      <h3>Filtrar por fecha</h3>
+      <div class="filter-row">
+        <div class="filter-group">
+          <label for="grFechaDesde">Desde</label>
+          <input type="date" id="grFechaDesde">
+        </div>
+        <div class="filter-group">
+          <label for="grFechaHasta">Hasta</label>
+          <input type="date" id="grFechaHasta">
+        </div>
+        <button class="filter-apply-btn" onclick="aplicarFiltroGastos()">Aplicar</button>
+      </div>
+      <div class="quick-filters">
+        <button class="qf-btn" id="grQf_hoy"    onclick="setQuickFilterGastos('hoy',    this)">Hoy</button>
+        <button class="qf-btn" id="grQf_semana" onclick="setQuickFilterGastos('semana', this)">Esta semana</button>
+        <button class="qf-btn" id="grQf_mes"    onclick="setQuickFilterGastos('mes',    this)">Este mes</button>
+        <button class="qf-btn" id="grQf_todo"   onclick="setQuickFilterGastos('todo',   this)">Todo</button>
+      </div>
+      <div class="gr-rubro-chips" id="grRubroChips"></div>
+    </div>
+    <!-- Contenido dinámico -->
+    <div id="gastosReportContent">
+      <div class="report-loading"><div class="spinner"></div><span>Cargando gastos...</span></div>
     </div>
   </div>
 </div>
@@ -2186,6 +2242,7 @@ function adminMenuAction(accion) {
   if (accion === "reporte")  openReport();
   if (accion === "producto") openProductModal(null);
   if (accion === "gastos")   openGastos();
+  if (accion === "reporte-gastos") openGastosReport();
 }
 
 // Cerrar el menú si se hace clic fuera
@@ -2578,6 +2635,224 @@ document.addEventListener("DOMContentLoaded", async () => {
     showLogin();
   }
 });
+
+/* ═══════════════════════════════════════
+   REPORTE DE GASTOS
+═══════════════════════════════════════ */
+let gastosCache      = [];      // array de gastos con sus items embebidos
+let gastosRubroFiltro = "todos"; // rubro activo en el chip filter
+
+async function openGastosReport() {
+  document.getElementById("gastosReportPanel").classList.add("open");
+  await cargarGastos();
+}
+
+function closeGastosReport() {
+  document.getElementById("gastosReportPanel").classList.remove("open");
+}
+
+async function cargarGastos() {
+  const content = document.getElementById("gastosReportContent");
+  content.innerHTML = `<div class="report-loading"><div class="spinner"></div><span>Cargando gastos...</span></div>`;
+
+  try {
+    const { data: gastos, error: errGastos } = await window.supabase_res
+      .from("gastos")
+      .select("*, gastos_items(*)")
+      .order("fecha", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    if (errGastos) throw errGastos;
+
+    gastosCache = gastos || [];
+    renderRubroChips();
+    renderGastosReport();
+  } catch(e) {
+    console.error("Error cargando gastos:", e);
+    content.innerHTML = `
+      <div class="report-empty">
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+        <p>No se pudo cargar el reporte.<br>Verificá tu conexión e intentá nuevamente.</p>
+      </div>`;
+  }
+}
+
+function renderRubroChips() {
+  // Recolectar rubros únicos de todos los items
+  const rubrosSet = new Set(["todos"]);
+  gastosCache.forEach(g => {
+    (g.gastos_items || []).forEach(item => {
+      if (item.rubro) rubrosSet.add(item.rubro);
+    });
+  });
+
+  const chips = document.getElementById("grRubroChips");
+  chips.innerHTML = [...rubrosSet].map(r => `
+    <button class="gr-rubro-chip${r === gastosRubroFiltro ? " active" : ""}"
+            onclick="setRubroFiltroGastos('${escHtml(r)}', this)">
+      ${r === "todos" ? "Todos los rubros" : escHtml(r)}
+    </button>`).join("");
+}
+
+function setRubroFiltroGastos(rubro, btn) {
+  gastosRubroFiltro = rubro;
+  document.querySelectorAll(".gr-rubro-chip").forEach(c => c.classList.remove("active"));
+  btn.classList.add("active");
+  renderGastosReport();
+}
+
+function setQuickFilterGastos(tipo, btn) {
+  document.querySelectorAll("#gastosReportPanel .qf-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+
+  const hoy = new Date();
+  let desde = "", hasta = "";
+
+  if (tipo === "hoy") {
+    desde = hasta = toDateStr(hoy);
+  } else if (tipo === "semana") {
+    const lunes = new Date(hoy);
+    lunes.setDate(hoy.getDate() - hoy.getDay() + (hoy.getDay() === 0 ? -6 : 1));
+    desde = toDateStr(lunes);
+    hasta = toDateStr(hoy);
+  } else if (tipo === "mes") {
+    desde = toDateStr(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
+    hasta = toDateStr(hoy);
+  }
+
+  document.getElementById("grFechaDesde").value = desde;
+  document.getElementById("grFechaHasta").value = hasta;
+  renderGastosReport();
+}
+
+function aplicarFiltroGastos() {
+  document.querySelectorAll("#gastosReportPanel .qf-btn").forEach(b => b.classList.remove("active"));
+  renderGastosReport();
+}
+
+function renderGastosReport() {
+  const desde = document.getElementById("grFechaDesde").value;
+  const hasta  = document.getElementById("grFechaHasta").value;
+  const content = document.getElementById("gastosReportContent");
+
+  // Filtrar por fecha (campo `fecha` es tipo date: "YYYY-MM-DD")
+  let gastos = gastosCache.filter(g => {
+    if (!g.fecha) return true;
+    if (desde && g.fecha < desde) return false;
+    if (hasta  && g.fecha > hasta)  return false;
+    return true;
+  });
+
+  // Filtrar por rubro: si el filtro no es "todos", solo incluir gastos
+  // que tengan al menos un item con ese rubro
+  if (gastosRubroFiltro !== "todos") {
+    gastos = gastos.filter(g =>
+      (g.gastos_items || []).some(i =>
+        normalizarRubro(i.rubro) === normalizarRubro(gastosRubroFiltro)
+      )
+    );
+  }
+
+  if (gastos.length === 0) {
+    content.innerHTML = `
+      <div class="report-empty">
+        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <p>No hay gastos en el período seleccionado.</p>
+      </div>`;
+    return;
+  }
+
+  // ── Totales generales ──
+  const totalGastos   = gastos.reduce((s, g) => s + (parseFloat(g.total) || 0), 0);
+  const totalFacturas = gastos.length;
+
+  // Total de items (considerando filtro de rubro)
+  const itemsFiltrados = gastos.flatMap(g => {
+    const items = g.gastos_items || [];
+    return gastosRubroFiltro === "todos"
+      ? items
+      : items.filter(i => normalizarRubro(i.rubro) === normalizarRubro(gastosRubroFiltro));
+  });
+  const totalItems = itemsFiltrados.reduce((s, i) => s + (parseFloat(i.subtotal) || 0), 0);
+
+  // ── Totales por rubro ──
+  const rubroMap = {};
+  gastosCache
+    .filter(g => {
+      if (!g.fecha) return true;
+      if (desde && g.fecha < desde) return false;
+      if (hasta  && g.fecha > hasta)  return false;
+      return true;
+    })
+    .forEach(g => {
+      (g.gastos_items || []).forEach(i => {
+        const r = i.rubro || "Sin rubro";
+        if (!rubroMap[r]) rubroMap[r] = 0;
+        rubroMap[r] += parseFloat(i.subtotal) || 0;
+      });
+    });
+
+  const rubrosOrdenados = Object.entries(rubroMap).sort((a, b) => b[1] - a[1]);
+
+  content.innerHTML = `
+    <div class="gr-summary-grid">
+      <div class="gr-summary-card red">
+        <div class="gr-summary-label">Total gastado</div>
+        <div class="gr-summary-value">${fmtUYU(totalGastos)}</div>
+      </div>
+      <div class="gr-summary-card blue">
+        <div class="gr-summary-label">Facturas</div>
+        <div class="gr-summary-value">${totalFacturas}</div>
+      </div>
+    </div>
+
+    <div class="gr-por-rubro-card">
+      <h3>Gasto por rubro</h3>
+      ${rubrosOrdenados.map(([r, t]) => `
+        <div class="gr-rubro-row">
+          <span class="gr-rubro-name">${escHtml(r)}</span>
+          <span class="gr-rubro-total">${fmtUYU(t)}</span>
+        </div>`).join("") || `<div style="padding:16px;font-size:13px;color:#94a3b8;">Sin datos de rubros.</div>`}
+    </div>
+
+    <div class="gr-table-card">
+      <h3>Facturas (${totalFacturas})</h3>
+      ${gastos.map((g, idx) => {
+        const items = gastosRubroFiltro === "todos"
+          ? (g.gastos_items || [])
+          : (g.gastos_items || []).filter(i => normalizarRubro(i.rubro) === normalizarRubro(gastosRubroFiltro));
+        const itemsHtml = items.map(i => `
+          <div class="gr-item-row">
+            <span class="gr-item-desc">${escHtml(i.descripcion || "—")} <span style="color:#94a3b8">x${i.cantidad || 1}</span></span>
+            ${i.rubro ? `<span class="gr-item-rubro">${escHtml(i.rubro)}</span>` : ""}
+            <span class="gr-item-subtotal">${fmtUYU(i.subtotal ?? 0)}</span>
+          </div>`).join("");
+        return `
+        <div class="gr-gasto-row" id="grg_${idx}">
+          <div class="gr-gasto-header" onclick="toggleGastoRow(${idx})">
+            <div>
+              <div class="gr-gasto-empresa">${escHtml(g.empresa || "Sin nombre")}</div>
+              <div class="gr-gasto-meta">
+                ${g.fecha || ""}${g.sucursal ? " · " + escHtml(g.sucursal) : ""}
+                ${g.tipo_documento ? " · " + escHtml(g.tipo_documento) : ""}
+                ${g.numero_factura ? " #" + escHtml(g.numero_factura) : ""}
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="gr-gasto-total">${fmtUYU(g.total ?? 0)}</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </div>
+          </div>
+          <div class="gr-gasto-items">${itemsHtml || `<span style="font-size:12px;color:#94a3b8;">Sin ítems registrados.</span>`}</div>
+        </div>`;
+      }).join("")}
+    </div>
+  `;
+}
+
+function toggleGastoRow(idx) {
+  document.getElementById("grg_" + idx)?.classList.toggle("open");
+}
 </script>
 </body>
 </html>
